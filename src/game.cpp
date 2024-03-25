@@ -1,8 +1,9 @@
 #include "game.hpp"
 #include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Window/VideoMode.hpp>
 
 void Game::startWindow(){
-  window.
+  window = new sf::RenderWindow(sf::VideoMode(1280,720),"Hello World"); 
 }
 
 void Game::startPhysics(){

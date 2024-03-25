@@ -1,3 +1,5 @@
+#include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Window.hpp>
 #include <cstdint>
@@ -27,6 +29,7 @@ class Game{
       state = Running;
 
       while (state == Running) {
+        window->clear(sf::Color::Black);
         frameClock.restart();
         onSerialise();
         onLoadLevel();
@@ -39,6 +42,7 @@ class Game{
         }
         onFixedUpdate();
         onDeserialise();
+        window->display();
       }
     }catch(const std::exception& e){
       std::cout << e.what() << "\n";
