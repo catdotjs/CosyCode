@@ -1,6 +1,9 @@
+#pragma once
+
 #include "Graphics.hpp"
 #include <SFML/System/Vector2.hpp>
 #include <boost/uuid/uuid.hpp>
+#include <functional>
 
 namespace cc{
    class GameObject{
@@ -14,14 +17,14 @@ namespace cc{
     GameObject(std::string spritesource){
       Sprite = new cc::Sprite(spritesource);
     }
+
     // Events
-    void onCreate(){};
-    void onEnabled(){};
-    void onUpdate(float deltaTimeMs){
-      Sprite->angle += deltaTimeMs/1000*0.5;
-    };
-    void onFixedUpdate(){};
-    void onGUI(){};
-    void onDestroy(){};
+    // TODO add cc::Game* to all here. resolve header issue. 
+    std::function<void()> onCreate = []() {};
+    std::function<void()> onEnabled = []() {};
+    std::function<void(float deltaTimeMs)> onUpdate = [](float) {};
+    std::function<void()> onFixedUpdate = []() {};
+    std::function<void()> onGUI = []() {};
+    std::function<void()> onDestroy = []() {};
   };
 }

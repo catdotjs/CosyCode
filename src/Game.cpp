@@ -38,7 +38,7 @@ void cc::Game::Start(){
     startWindow();
     startPhysics();
     startGUI();
-    AppendGameObject(new cc::GameObject("assets/test.jpg"));
+    onGameStart(this);
   }catch(const std::exception& e){
     std::cout << e.what() << "\n";
   }
@@ -98,12 +98,13 @@ void cc::Game::onInput(){
     }
 
     if (event.type==sf::Event::Resized){
-      windowSize = sf::Vector2<int>(event.size.width,event.size.height);
+      windowSize = sf::Vector2<int>(event.size.width, event.size.height);
     }
   }
 }
 
 void cc::Game::onGUI(){
+  onGameGUI(this);
   for(const auto& obj : objects){
     obj->onGUI();
   }
@@ -111,22 +112,25 @@ void cc::Game::onGUI(){
 
 void cc::Game::onRender(){
   window->clear(sf::Color::Red);
+  onGameEarlyRender(this);
   for(const auto& obj : objects){
-    obj->Position = (sf::Vector2<float>)(windowSize/2);
     obj->Sprite->sprite.setPosition(obj->Position);
     obj->Sprite->sprite.setRotation(obj->Sprite->angle);
     window->draw(obj->Sprite->sprite);
   }
+  onGameLateRender(this);
   window->display();
 }
 
 void cc::Game::onUpdate(float deltaTimeMs){
+  onGameUpdate(this, deltaTimeMs);
   for(const auto& obj : objects){
     obj->onUpdate(deltaTimeMs);
   }
 }
 
 void cc::Game::onFixedUpdate(){
+  onGameFixedUpdate(this);
   for(const auto& obj : objects){
     obj->onFixedUpdate();
   }

@@ -53,6 +53,14 @@ class Game{
 
   sf::Vector2<int> GetWindowSize();
   void SetWindowSize(sf::Vector2<int> newSize);
+
+  // Game World Controls
+  std::function<void(cc::Game*)> onGameStart = [](cc::Game*) {};
+  std::function<void(cc::Game*,float)> onGameUpdate = [](cc::Game*, float) {};
+  std::function<void(cc::Game*)> onGameFixedUpdate = [](cc::Game*) {};
+  std::function<void(cc::Game*)> onGameGUI = [](cc::Game*) {};
+  std::function<void(cc::Game*)> onGameEarlyRender = [](cc::Game*) {};
+  std::function<void(cc::Game*)> onGameLateRender = [](cc::Game*) {};
   private:
   // Due to timing importances(specially rendering),
   // Programmer should only be able to change values here
