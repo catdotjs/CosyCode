@@ -3,13 +3,19 @@
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/VideoMode.hpp>
 #include <SFML/Window/Window.hpp>
-#include <cstdint>
-
+#include <SFML/Window/WindowBase.hpp>
+#include <SFML/Window/Event.hpp>
 #include <SFML/Main.hpp>
 #include <SFML/System.hpp>
+
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+
 #include <functional>
 #include <string>
 
+#include <cstdint>
 #include "GameObject.hpp"
 
 namespace cc {
@@ -23,6 +29,7 @@ enum GameState{
 
 class Game{
   public:
+  sf::Event event;
   Game(sf::Vector2<int> windowsize, std::string title="No title", bool setfullscreen=false){
     windowSize = windowsize;
     windowTitle = title;
@@ -31,9 +38,12 @@ class Game{
 
   void Start();
   void Pause();
+  void Stop();
 
   // Easy to remove in Game class is static
   void AppendGameObject(cc::GameObject* object);
+  void DestroyGameObject(cc::GameObject* object);
+  void DestroyGameObject(boost::uuids::uuid UUID);
 
   // Control Window
   void SetFullscreen(bool isFullscreen);
@@ -51,7 +61,11 @@ class Game{
   // Core variables
   GameState state;
   std::vector<std::function<void()>> backlogMethods;
+  
+  // Objects
+  boost::uuids::random_generator_pure UUIDgen;
   std::vector<GameObject*> serialQueue;
+  std::vector<GameObject*> destroyQueue;
   std::vector<GameObject*> objects;
   
   // Timing
@@ -73,15 +87,19 @@ class Game{
   void onLoadLevel();
   void onDestroy();
   void onInput();
-  void onGUI();            // This is here due to needing onInput
+  void onGUI();           
   void onRender();    
-  void onUpdate();
-  void onFixedUpdate();    // Update can run several times per 1 fixedUpdate
-  void onDeserialise();    // Frame timer ends here
+  void onUpdate(float deltaTimeMs);
+  void onFixedUpdate();    
+  void onDeserialise();
+  void runBacklogMethods();
 
   // Hidden Methods
   void _FullscreenSet(bool setFullscreen);
-
-  void runBacklogMethods();
+  void _StartGameLoop();
+  void _ProcessState();
+  void _Paused();
+  void _Exiting();
+  void _Destroy();
 };
 }

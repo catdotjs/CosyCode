@@ -1,10 +1,17 @@
 #include "Game.hpp"
 #include "GameObject.hpp"
+
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <SFML/Window/Event.hpp>
 #include <SFML/Window/VideoMode.hpp>
+#include <SFML/Window/WindowBase.hpp>
 #include <SFML/Window/WindowStyle.hpp>
 
+//#include <imgui/imgui.h>
+//#include "../lib/imgui-sfml/imgui-SFML.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <functional>
@@ -14,33 +21,38 @@ void cc::Game::AppendGameObject(cc::GameObject* object){
   serialQueue.push_back(object);
 }
 
+void cc::Game::DestroyGameObject(cc::GameObject* object){
+  auto obj = std::find(objects.begin(), objects.end(), object);
+
+  // Making sure last element is not given as output!
+  if(obj!=objects.end()){
+    // Destroy event will clear the queue
+    destroyQueue.push_back(*obj);
+    objects.erase(obj);
+  }
+}
+
 void cc::Game::Start(){
   state = Starting;
   try{
     startWindow();
     startPhysics();
     startGUI();
-    state = Running;
     AppendGameObject(new cc::GameObject("assets/test.jpg"));
-    while (state == Running) {
-      runBacklogMethods();
-      onSerialise();
-      onLoadLevel();
-      onDestroy();
-      onInput();
-      onGUI();
-      onRender();
-      onUpdate();
-      if (frameClock.getElapsedTime().asMilliseconds()>FixedUpdateIntervalMs) {
-        onFixedUpdate();
-        frameClock.restart();
-      }
-      onDeserialise();
-    }
   }catch(const std::exception& e){
     std::cout << e.what() << "\n";
   }
+  _StartGameLoop();
 }
+
+void cc::Game::Pause(){
+  state = cc::GameState::Paused;
+}
+
+void cc::Game::Stop(){
+  state = cc::GameState::Exiting;
+}
+
 
 void cc::Game::startWindow(){
   videoMode = new sf::VideoMode(windowSize.x, windowSize.y);
@@ -52,13 +64,18 @@ void cc::Game::startPhysics(){
 }
 
 void cc::Game::startGUI(){
-
+  
 }
 
 void cc::Game::onSerialise(){
   for (const auto& obj : serialQueue){ 
-    obj->UID = 1;
+    obj->UUID = UUIDgen();
     objects.push_back(obj);
+    obj->onCreate();
+
+    if(obj->Enabled){
+      obj->onEnabled();
+    }
   }
   serialQueue.clear();
 }
@@ -68,15 +85,28 @@ void cc::Game::onLoadLevel(){
 }
 
 void cc::Game::onDestroy(){
-
+  for (const auto& obj : destroyQueue){ 
+    delete obj;
+  }
+  destroyQueue.clear();
 }
 
 void cc::Game::onInput(){
+  while(window->pollEvent(event)){
+    if (event.type==sf::Event::Closed){
+      state = cc::GameState::Exiting; 
+    }
 
+    if (event.type==sf::Event::Resized){
+      windowSize = sf::Vector2<int>(event.size.width,event.size.height);
+    }
+  }
 }
 
 void cc::Game::onGUI(){
-
+  for(const auto& obj : objects){
+    obj->onGUI();
+  }
 }
 
 void cc::Game::onRender(){
@@ -84,24 +114,34 @@ void cc::Game::onRender(){
   for(const auto& obj : objects){
     obj->Position = (sf::Vector2<float>)(windowSize/2);
     obj->Sprite->sprite.setPosition(obj->Position);
+    obj->Sprite->sprite.setRotation(obj->Sprite->angle);
     window->draw(obj->Sprite->sprite);
   }
   window->display();
 }
 
-void cc::Game::onUpdate(){
-
+void cc::Game::onUpdate(float deltaTimeMs){
+  for(const auto& obj : objects){
+    obj->onUpdate(deltaTimeMs);
+  }
 }
 
 void cc::Game::onFixedUpdate(){
-
+  for(const auto& obj : objects){
+    obj->onFixedUpdate();
+  }
 }
 
 void cc::Game::onDeserialise(){
 
 }
 
-
+void cc::Game::runBacklogMethods(){
+  for(const auto& blMethod : backlogMethods){
+    blMethod(); // Methods already have everything ready just needs to be run at start of next frame
+  }
+  backlogMethods.clear();
+}
 
 // Get/Set Methods 
 void cc::Game::SetFullscreen(bool setFullscreen){
@@ -131,16 +171,79 @@ void cc::Game::SetWindowSize(sf::Vector2<int> newSize){
   window->setSize(sf::Vector2u(windowSize.x,windowSize.y));
 }
 
-
-
-// Quick Methods
+// Hidden Methods
 void cc::Game::_FullscreenSet(bool setFullscreen){
   window->create(*videoMode, windowTitle, setFullscreen?sf::Style::Fullscreen:sf::Style::Default);
 }
 
-void cc::Game::runBacklogMethods(){
-  for(const auto& blMethod : backlogMethods){
-    blMethod(); // Methods already have everything ready just needs to be run at start of next frame
+void cc::Game::_StartGameLoop(){
+  state = Running;
+  int lastDelta = 0;
+  try{
+    while (state == Running) {
+      runBacklogMethods();
+      onSerialise();
+      onLoadLevel();
+      onDestroy();
+      onInput();
+      onGUI();
+      onRender();
+
+      // Update Logics
+      lastDelta = frameClock.getElapsedTime().asMilliseconds() - lastDelta;
+      onUpdate(lastDelta);
+
+      if (frameClock.getElapsedTime().asMilliseconds()>FixedUpdateIntervalMs) {
+        onFixedUpdate();
+        frameClock.restart();
+        lastDelta = 0;
+      }
+      onDeserialise();
+    }
+  }catch(const std::exception& e){
+    std::cout << e.what() << "\n";
   }
-  backlogMethods.clear();
+  _ProcessState();
+}
+
+void cc::Game::_ProcessState(){
+  switch (state) {
+    case cc::GameState::Running:
+      _StartGameLoop();
+      break;
+
+    case cc::GameState::Paused:
+      _Paused();
+      break;
+
+    case cc::GameState::Exiting:
+      _Exiting();
+      break;
+
+    case cc::GameState::Destroying:
+      _Destroy();
+      break;
+    default:
+      window->close();
+      break;
+  }
+}
+
+// Future use!
+
+void cc::Game::_Paused(){
+  // Legit just idle 
+  while (state==cc::GameState::Paused) { }
+  _ProcessState();
+}
+
+void cc::Game::_Exiting(){
+  // Final deserialising will happen here
+  state=cc::GameState::Exiting;
+  _ProcessState();
+}
+
+void cc::Game::_Destroy(){
+  // Destroy all
+  window->close();
 }
