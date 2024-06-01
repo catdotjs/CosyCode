@@ -155,6 +155,7 @@ void cc::Game::SetWindowTitle(std::string newTitle) {
 /// WINDOW SIZE
 cc::Vector2<int> cc::Game::GetWindowSize() {
   // Just updating it in case I forgot to update it somewhere else
+  windowSize = cc::Vector2<int>(window->getSize());
   return windowSize;
 }
 
